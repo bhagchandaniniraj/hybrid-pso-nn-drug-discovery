@@ -1,0 +1,12 @@
+# Exclude specified folders
+db/
+docs/
+.ipynb_checkpoints/
+out/
+output/
+res/
+
+# Optional: Exclude large/temp files
+*.tmp
+*.log
+__pycache__/

@@ -1,0 +1,453 @@
+Here’s the correct **insertion order** for the MySQL schema we built, based on **FK dependencies** (parent tables first, then children). I’ll group it by “stage” so you can follow it during import.
+
+> Rule of thumb:
+> **Insert parent rows first** → then **mapping/join tables** → then **deep children**.
+
+---
+
+## Stage 0 — Reference / “lookup-like” entities (can be inserted anytime, but usually after parent keys exist)
+
+1. `reference_item` *(independent; referenced by join tables)*
+2. `pathway` *(independent; referenced by pathway join tables)*
+3. `polypeptide` *(independent; referenced by interactant_polypeptide + polypeptide_* tables)*
+
+These can be inserted earlier or later, but in practice they’re usually inserted while processing a drug/interactant.
+
+---
+
+## Stage 1 — Root parent (must be first)
+
+1. **`drug`** ✅ *(root table; everything else hangs from this)*
+
+After inserting `drug`, you have `drug_pk` available.
+
+---
+
+## Stage 2 — Direct children of drug (FK → drug)
+
+These only need `drug_pk`:
+
+2. `drugbank_id_map`
+3. `drug_group`
+4. `drug_classification` *(one row per drug)*
+5. `drug_classification_alternative_parent`
+6. `drug_classification_substituent`
+7. `drug_synonym`
+8. `drug_salt`
+9. `product`
+10. `packager`
+11. `manufacturer`
+12. `drug_category`
+13. `drug_affected_organism`
+14. `drug_dosage`
+15. `drug_ahfs_code`
+16. `drug_pdb_entry`
+17. `drug_atc_code`
+18. `drug_atc_level` *(depends on drug_atc_code via FK (drug_pk, atc_code))*
+19. `drug_price`
+20. `drug_patent`
+21. `drug_food_interaction`
+22. `drug_interaction`
+23. `drug_external_identifier`
+24. `drug_external_link`
+25. `drug_property`
+26. `reaction` *(depends on drug_pk)*
+
+
+=== Stage 2 Summary (All Tables) ===
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ Table                                  | Status | Attempted | Affected(rowcount) | Rows in DB | Time    
+========================================+========+===========+====================+============+=========
+ drugbank_id_map                        | LOADED | 78,685    | 24,506             | 22,428     | 143.9s  
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_group                             | LOADED | 20,354    | 20,354             | 20,354     | 103.6s  
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_classification                    | LOADED | 11,154    | 11,154             | 11,154     | 94.4s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_classification_alternative_parent | LOADED | 0         | 0                  | 0          | 87.4s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_classification_substituent        | LOADED | 0         | 0                  | 0          | 94.4s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_synonym                           | LOADED | 39,982    | 39,977             | 39,977     | 89.4s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_salt                              | LOADED | 2,922     | 2,922              | 2,922      | 77.6s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ product                                | LOADED | 462,594   | 462,594            | 462,594    | 277.5s  
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ packager                               | LOADED | 20,499    | 20,499             | 20,499     | 81.0s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ manufacturer                           | LOADED | 5,971     | 5,971              | 5,971      | 79.5s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_category                          | LOADED | 101,512   | 101,512            | 101,512    | 95.7s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_affected_organism                 | LOADED | 3,453     | 3,453              | 3,453      | 68.7s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_dosage                            | LOADED | 101,298   | 100,969            | 100,969    | 94.5s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_ahfs_code                         | LOADED | 0         | 0                  | 0          | 60.9s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_pdb_entry                         | LOADED | 303,926   | 303,926            | 303,926    | 114.6s  
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_atc_code                          | LOADED | 5,656     | 5,656              | 5,656      | 65.2s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_atc_level                         | LOADED | 22,624    | 22,624             | 22,624     | 67.1s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_price                             | LOADED | 11,807    | 11,807             | 11,807     | 63.8s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_patent                            | LOADED | 12,214    | 12,214             | 12,214     | 65.2s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_food_interaction                  | LOADED | 2,512     | 2,512              | 2,512      | 63.3s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_interaction                       | LOADED | 2,855,848 | 2,855,848          | 2,855,848  | 1396.6s 
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_external_identifier               | LOADED | 89,758    | 89,758             | 89,758     | 117.5s  
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_external_link                     | LOADED | 3,088     | 3,088              | 3,088      | 72.5s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ drug_property                          | LOADED | 314,277   | 314,277            | 314,277    | 151.0s  
+----------------------------------------+--------+-----------+--------------------+------------+---------
+ reaction                               | LOADED | 4,046     | 4,046              | 4,046      | 72.3s   
+----------------------------------------+--------+-----------+--------------------+------------+---------
+
+Tips:
+- If you see Status=SKIPPED, that table already has rows and was not reloaded.
+- To force reload a table, add it to FORCE_RELOAD_TABLES, e.g. FORCE_RELOAD_TABLES={'drug_property','reaction'}.
+- If a table has no unique key and you want to rerun safely, use FORCE_RELOAD_TABLES or WIPE_BEFORE_LOAD_TABLES.
+
+---
+
+## Stage 3 — Children of “drug_salt” (FK → drug_salt)
+
+These must come **after** salts are inserted:
+27. `drug_salt_drugbank_id` *(depends on salt_pk from drug_salt)*
+---
+
+## Stage 4 — References link tables (FK → drug, reference_item)
+
+Insert the reference item first (Stage 0), then join:
+
+28. `drug_reference` *(depends on drug + reference_item)*
+
+Similarly for interactants:
+
+29. `interactant_reference` *(depends on interactant + reference_item)*
+
+---
+
+
+drug_salt_drugbank_id (Stage 3): 
+ 73687/? [01:11<00:00, 1408.57drug/s]
+[Stage3] drugs=10,000 attempted=50 inserted=50 matched_salts=50 unmatched_salts=0 rate=5776.44/sec
+[Stage3] drugs=20,000 attempted=369 inserted=369 matched_salts=369 unmatched_salts=0 rate=2012.43/sec
+[Stage3] drugs=30,000 attempted=1,158 inserted=1,158 matched_salts=1,158 unmatched_salts=0 rate=1084.60/sec
+[Stage3] drugs=40,000 attempted=1,187 inserted=1,187 matched_salts=1,187 unmatched_salts=0 rate=1339.94/sec
+[Stage3] drugs=50,000 attempted=1,221 inserted=1,221 matched_salts=1,221 unmatched_salts=0 rate=1575.02/sec
+[Stage3] drugs=60,000 attempted=1,360 inserted=1,360 matched_salts=1,360 unmatched_salts=0 rate=1688.04/sec
+[Stage3] drugs=70,000 attempted=2,659 inserted=2,659 matched_salts=2,659 unmatched_salts=0 rate=1036.90/sec
+-----------------------+--------+-----------+----------+------------+-----------------+---------------+-----------------+--------------+--------+-------
+ Table                 | Status | Attempted | Inserted | Rows in DB | Processed drugs | Matched salts | Unmatched salts | Missing drug | Errors | Time  
+=======================+========+===========+==========+============+=================+===============+=================
+ drug_salt_drugbank_id | LOADED | 2,922     | 2,922    | 2,922      | 73,687          | 2,922         | 0               | 0            | 0      | 71.2s 
+-----------------------+--------+-----------+----------+------------+-----------------+---------------+-----------------+--------------+--------+-------
+
+## Stage 5 — Pathway joins and pathway members
+
+Because `pathway` is independent, you can insert it before or during.
+
+Once you have `drug_pk` and `smpdb_id`:
+
+30. `drug_pathway` *(depends on drug + pathway)*
+31. `pathway_drug_member` *(depends on pathway)*
+32. `pathway_enzyme_member` *(depends on pathway)*
+Stage 5 pre-pass: counting total <drug> in XML...
+Total drugs in XML: 73,687
+Stage 5: pathways: 100%
+ 73687/73687 [01:28<00:00, 3128.78drug/s]
+[Stage5] drugs=10,000/73,687 pathway=599 drug_pathway=599 pdm=0 pem=9,851 rate=2046.99/sec
+[Stage5] drugs=20,000/73,687 pathway=1,243 drug_pathway=1,243 pdm=0 pem=20,867 rate=1202.65/sec
+[Stage5] drugs=30,000/73,687 pathway=2,012 drug_pathway=2,012 pdm=0 pem=37,609 rate=714.21/sec
+[Stage5] drugs=40,000/73,687 pathway=2,558 drug_pathway=2,558 pdm=0 pem=48,385 rate=872.51/sec
+[Stage5] drugs=50,000/73,687 pathway=3,104 drug_pathway=3,104 pdm=0 pem=59,404 rate=1013.67/sec
+[Stage5] drugs=60,000/73,687 pathway=3,648 drug_pathway=3,648 pdm=0 pem=69,879 rate=1099.45/sec
+[Stage5] drugs=70,000/73,687 pathway=3,780 drug_pathway=3,780 pdm=0 pem=71,969 rate=812.50/sec
+
+=== Stage 5 Summary ===
+-----------------------+-----------+--------------------+------------
+ Table                 | Attempted | Affected(rowcount) | Rows in DB 
+=======================+===========+====================+============
+ pathway               | 3,780     | 877                | 877        
+-----------------------+-----------+--------------------+------------
+ drug_pathway          | 3,780     | 3,780              | 3,780      
+-----------------------+-----------+--------------------+------------
+ pathway_drug_member   | 0         | 0                  | 0          
+-----------------------+-----------+--------------------+------------
+ pathway_enzyme_member | 71,969    | 15,198             | 15,198     
+-----------------------+-----------+--------------------+------------
+
+Other stats:
+- Drugs in XML (pre-pass): 73,687
+- Drugs processed:         73,687
+- Missing drugs in DB:     0
+- pathway_enzyme_member uses column: drugbank_id
+- Elapsed: 88.0s
+
+## Stage 6 — Reaction children (FK → reaction)
+
+After `reaction`:
+
+33. `reaction_element` *(depends on reaction_pk)*
+34. `reaction_enzyme` *(depends on reaction_pk)*
+
+---
+
+## Stage 7 — Interactant group (targets/enzymes/carriers/transporters)
+
+This is the biggest dependency chain.
+
+After `drug`:
+
+35. `interactant` *(FK → drug)*
+
+After `interactant`:
+
+36. `interactant_action` *(FK → interactant)*
+37. `interactant_polypeptide` *(FK → interactant, and also FK → polypeptide)*
+38. `interactant_reference` *(FK → interactant + reference_item)*
+
+---
+
+## Stage 8 — Polypeptide children (FK → polypeptide)
+
+After `polypeptide` exists:
+
+39. `polypeptide_external_identifier` *(FK → polypeptide)*
+40. `polypeptide_synonym` *(FK → polypeptide)*
+
+---
+
+Stage 8 pre-pass starting...
+Pre-pass: counting <drug>: 
+ 73687/? [01:07<00:00, 3302.84drug/s]
+Total drugs in XML: 73,687
+Stage 8: polypeptide children: 100%
+ 73687/73687 [04:17<00:00, 784.95drug/s]
+[Stage8] drugs=5,000/73,687 ext_ins=2,684 syn_ins=1,938 missing_poly_fk=0 rate=1458.11/sec
+[Stage8] drugs=10,000/73,687 ext_ins=4,182 syn_ins=3,091 missing_poly_fk=0 rate=1892.22/sec
+[Stage8] drugs=15,000/73,687 ext_ins=6,095 syn_ins=4,520 missing_poly_fk=0 rate=1929.32/sec
+[Stage8] drugs=20,000/73,687 ext_ins=9,821 syn_ins=7,289 missing_poly_fk=0 rate=633.13/sec
+[Stage8] drugs=25,000/73,687 ext_ins=12,790 syn_ins=9,958 missing_poly_fk=0 rate=293.00/sec
+[Stage8] drugs=30,000/73,687 ext_ins=14,278 syn_ins=11,384 missing_poly_fk=0 rate=299.12/sec
+[Stage8] drugs=35,000/73,687 ext_ins=16,099 syn_ins=12,767 missing_poly_fk=0 rate=333.91/sec
+[Stage8] drugs=40,000/73,687 ext_ins=17,694 syn_ins=14,030 missing_poly_fk=0 rate=359.70/sec
+[Stage8] drugs=45,000/73,687 ext_ins=18,629 syn_ins=14,793 missing_poly_fk=0 rate=392.41/sec
+[Stage8] drugs=50,000/73,687 ext_ins=19,682 syn_ins=15,560 missing_poly_fk=0 rate=411.01/sec
+[Stage8] drugs=55,000/73,687 ext_ins=20,651 syn_ins=16,298 missing_poly_fk=0 rate=436.31/sec
+[Stage8] drugs=60,000/73,687 ext_ins=22,027 syn_ins=17,504 missing_poly_fk=0 rate=427.11/sec
+[Stage8] drugs=65,000/73,687 ext_ins=24,710 syn_ins=19,773 missing_poly_fk=0 rate=330.55/sec
+[Stage8] drugs=70,000/73,687 ext_ins=26,873 syn_ins=21,992 missing_poly_fk=0 rate=279.42/sec
+
+=== Stage 8 Summary ===
+---------------------------------+-----------+--------------------+------------
+ Table                           | Attempted | Affected(rowcount) | Rows in DB 
+=================================+===========+====================+============
+ polypeptide_external_identifier | 253,069   | 27,086             | 27,086     
+---------------------------------+-----------+--------------------+------------
+ polypeptide_synonym             | 199,334   | 22,224             | 22,224     
+---------------------------------+-----------+--------------------+------------
+ polypeptide (reference)         | -         | -                  | 5,367      
+---------------------------------+-----------+--------------------+------------
+
+Other stats:
+- Drugs in XML (pre-pass):          73,687
+- Drugs processed:                  73,687
+- Missing polypeptide FK matches:   0
+- Errors:                           0
+- Elapsed:                          257.8s
+
+## Stage 9 — Optional raw storage (FK → drug)
+
+This should be last per drug (but only needs drug_pk):
+
+41. `drug_raw` *(depends on drug)*
+
+---
+
+# Practical “per drug” insertion sequence (recommended)
+
+If you’re importing streaming per `<drug>`, this is the clean per-drug order:
+
+1. `drug`
+2. `drugbank_id_map`
+3. `drug_group`
+4. `drug_classification` → `drug_classification_alternative_parent` → `drug_classification_substituent`
+5. `drug_synonym`
+6. `drug_salt` → `drug_salt_drugbank_id`
+7. `product`, `packager`, `manufacturer`
+8. `drug_category`, `drug_affected_organism`, `drug_dosage`
+9. `drug_atc_code` → `drug_atc_level`
+10. `drug_ahfs_code`, `drug_pdb_entry`
+11. `drug_price`, `drug_patent`, `drug_food_interaction`, `drug_interaction`
+12. `drug_external_identifier`, `drug_external_link`, `drug_property`
+13. references: `reference_item` → `drug_reference`
+14. pathways: `pathway` → `drug_pathway` → `pathway_drug_member` → `pathway_enzyme_member`
+15. reactions: `reaction` → `reaction_element` → `reaction_enzyme`
+16. interactants: `interactant` → `interactant_action`
+
+    * polypeptides: `polypeptide` → `interactant_polypeptide` → `polypeptide_external_identifier` → `polypeptide_synonym`
+    * references: `reference_item` → `interactant_reference`
+17. `drug_raw` *(last)*
+
+---
+
+Stage 9 pre-pass starting...
+Pre-pass: counting <drug>: 
+ 73687/? [01:25<00:00, 2511.60drug/s]
+Total drugs in XML: 73,687
+Stage 9: drug_raw: 100%
+ 73687/73687 [04:47<00:00, 703.00drug/s]
+[Stage9] drugs=5,000/73,687 writes=5,000 affected=348 missing_drug=0 rate=614.50/sec
+[Stage9] drugs=10,000/73,687 writes=10,000 affected=466 missing_drug=0 rate=878.99/sec
+[Stage9] drugs=15,000/73,687 writes=15,000 affected=580 missing_drug=0 rate=977.66/sec
+[Stage9] drugs=20,000/73,687 writes=20,000 affected=1,134 missing_drug=0 rate=434.80/sec
+[Stage9] drugs=25,000/73,687 writes=25,000 affected=2,401 missing_drug=0 rate=222.16/sec
+[Stage9] drugs=30,000/73,687 writes=30,000 affected=3,085 missing_drug=0 rate=231.13/sec
+[Stage9] drugs=35,000/73,687 writes=35,000 affected=3,640 missing_drug=0 rate=260.55/sec
+[Stage9] drugs=40,000/73,687 writes=40,000 affected=4,289 missing_drug=0 rate=286.85/sec
+[Stage9] drugs=45,000/73,687 writes=45,000 affected=4,758 missing_drug=0 rate=314.73/sec
+[Stage9] drugs=50,000/73,687 writes=50,000 affected=5,503 missing_drug=0 rate=337.17/sec
+[Stage9] drugs=55,000/73,687 writes=55,000 affected=5,973 missing_drug=0 rate=361.76/sec
+[Stage9] drugs=60,000/73,687 writes=60,000 affected=7,193 missing_drug=0 rate=366.16/sec
+[Stage9] drugs=65,000/73,687 writes=65,000 affected=10,864 missing_drug=0 rate=298.02/sec
+[Stage9] drugs=70,000/73,687 writes=70,000 affected=15,821 missing_drug=0 rate=250.31/sec
+
+=== Stage 9 Summary ===
+----------+-----------+--------------------+------------+--------
+ Table    | Attempted | Affected(rowcount) | Rows in DB | Time   
+==========+===========+====================+============+========
+ drug_raw | 73,687    | 19,508             | 17,430     | 287.5s 
+----------+-----------+--------------------+------------+--------
+
+Other stats:
+- Drugs in XML (pre-pass):            73,687
+- Drugs processed:                    73,687
+- Missing drugs in DB (Stage 1 miss): 0
+- Errors:                             0
+- COMPRESS_RAW:                       False
+
+# One important note about constraints
+
+If you ever want “easy mode” bulk loading:
+
+* **temporarily disable FK checks** during load, then re-enable:
+
+```sql
+SET foreign_key_checks = 0;
+-- bulk load...
+SET foreign_key_checks = 1;
+```
+
+But for your streaming importer (per drug), you **don’t need** this if you follow the order above.
+
+---
+
+If you want, paste the output of:
+
+```sql
+SHOW CREATE TABLE interactant_polypeptide;
+SHOW CREATE TABLE drug_atc_level;
+```
+
+…and I’ll verify the two “composite-FK sensitive” parts match your actual database (these are the most common places where MySQL/MariaDB schema tweaks change the required order).
+
+
+----------------------------------------+-----------
+ Table                                  | Row count 
+========================================+===========
+ drug                                   | 17,430    
+----------------------------------------+-----------
+ drugbank_id_map                        | 22,428    
+----------------------------------------+-----------
+ drug_group                             | 20,354    
+----------------------------------------+-----------
+ drug_classification                    | 11,154    
+----------------------------------------+-----------
+ drug_classification_alternative_parent | 0         
+----------------------------------------+-----------
+ drug_classification_substituent        | 0         
+----------------------------------------+-----------
+ drug_synonym                           | 39,977    
+----------------------------------------+-----------
+ drug_salt                              | 2,922     
+----------------------------------------+-----------
+ product                                | 462,594   
+----------------------------------------+-----------
+ packager                               | 20,499    
+----------------------------------------+-----------
+ manufacturer                           | 5,971     
+----------------------------------------+-----------
+ drug_category                          | 101,512   
+----------------------------------------+-----------
+ drug_affected_organism                 | 3,453     
+----------------------------------------+-----------
+ drug_dosage                            | 100,969   
+----------------------------------------+-----------
+ drug_ahfs_code                         | 0         
+----------------------------------------+-----------
+ drug_pdb_entry                         | 303,926   
+----------------------------------------+-----------
+ drug_atc_code                          | 5,656     
+----------------------------------------+-----------
+ drug_atc_level                         | 22,624    
+----------------------------------------+-----------
+ drug_price                             | 11,807    
+----------------------------------------+-----------
+ drug_patent                            | 12,214    
+----------------------------------------+-----------
+ drug_food_interaction                  | 2,512     
+----------------------------------------+-----------
+ drug_interaction                       | 2,855,848 
+----------------------------------------+-----------
+ drug_external_identifier               | 89,758    
+----------------------------------------+-----------
+ drug_external_link                     | 3,088     
+----------------------------------------+-----------
+ drug_property                          | 314,277   
+----------------------------------------+-----------
+ reaction                               | 4,046     
+----------------------------------------+-----------
+ drug_salt_drugbank_id                  | 2,922     
+----------------------------------------+-----------
+ reference_item                         | 40,073    
+----------------------------------------+-----------
+ drug_reference                         | 25,607    
+----------------------------------------+-----------
+ interactant_reference                  | 56,935    
+----------------------------------------+-----------
+ interactant                            | 33,550    
+----------------------------------------+-----------
+ interactant_action                     | 25,388    
+----------------------------------------+-----------
+ interactant_polypeptide                | 37,209    
+----------------------------------------+-----------
+ polypeptide                            | 5,367     
+----------------------------------------+-----------
+ polypeptide_external_identifier        | 27,086    
+----------------------------------------+-----------
+ polypeptide_synonym                    | 22,224    
+----------------------------------------+-----------
+ pathway                                | 877       
+----------------------------------------+-----------
+ drug_pathway                           | 3,780     
+----------------------------------------+-----------
+ pathway_drug_member                    | 0         
+----------------------------------------+-----------
+ pathway_enzyme_member                  | 15,198    
+----------------------------------------+-----------
+ reaction_element                       | 8,092     
+----------------------------------------+-----------
+ reaction_enzyme                        | 3,737     
+----------------------------------------+-----------
+ drug_raw                               | 17,430    
+----------------------------------------+-----------
+
+Total rows across listed tables (sum of COUNT(*)): 4,760,494
