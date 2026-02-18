@@ -5,6 +5,7 @@ docs/
 out/
 output/
 res/
+pkl/
 
 # Optional: Exclude large/temp files
 *.tmp
