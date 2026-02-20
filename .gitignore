@@ -1,11 +1,11 @@
 # Exclude specified folders
-db/
-docs/
-.ipynb_checkpoints/
-out/
-output/
-res/
-pkl/
+db/*
+docs/*
+.ipynb_checkpoints/*
+out/*
+output/*
+res/*
+pkl/*
 
 # Optional: Exclude large/temp files
 *.tmp
