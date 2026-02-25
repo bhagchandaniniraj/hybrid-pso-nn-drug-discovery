@@ -6,6 +6,7 @@ out/*
 output/*
 res/*
 pkl/*
+fin/*
 
 # Optional: Exclude large/temp files
 *.tmp
